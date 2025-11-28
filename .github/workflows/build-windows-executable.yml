@@ -30,7 +30,7 @@ jobs:
           $fileName = $_.BaseName
           $filePath = $_.FullName
           Write-Host "Building $fileName with Nuitka"
-          python -m nuitka --lto=no --onefile --standalone $filePath
+          python -m nuitka --lto=no --onefile $filePath
           # 重命名为带有Nuitka标识的文件
           if (Test-Path "$fileName.exe") {
             Rename-Item -Path "$fileName.exe" -NewName "${fileName}_nuitka.exe"

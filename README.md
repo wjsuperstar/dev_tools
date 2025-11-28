@@ -12,6 +12,9 @@
 
 ```
 ├── tools/
+│   ├── enable_multiport_ssh_9606.py
+│   ├── enable_multiport_ssh_9811.py
+│   ├── enable_multiport_ssh_9813.py
 │   ├── sim_lock.py
 │   └── ssh_file_fetcher.py
 ├── .github/workflows/
@@ -44,11 +47,11 @@ python sim_lock.py
 
 ```bash
 # 构建单个脚本
-python -m nuitka --lto=no --onefile --standalone tools/ssh_file_fetcher.py
+python -m nuitka --lto=no --onefile tools/ssh_file_fetcher.py
 
 # 构建所有脚本（Nuitka版本）
 Get-ChildItem -Path "tools" -Filter "*.py" | ForEach-Object {
-  python -m nuitka --lto=no --onefile --standalone $_.FullName
+  python -m nuitka --lto=no --onefile $_.FullName
 }
 ```
 
@@ -69,14 +72,6 @@ Get-ChildItem -Path "tools" -Filter "*.py" | ForEach-Object {
 每次提交到main或master分支时，GitHub Actions会自动构建tools目录下所有Python脚本的Windows可执行程序并创建release。每个脚本会生成两个版本：
 1. Nuitka版本 - 文件名格式为 `{脚本名}_nuitka.exe`
 2. PyInstaller版本 - 文件名格式为 `{脚本名}_pyinstaller.exe`
-
-## 配置
-
-脚本中的服务器配置：
-- 服务器地址: 192.168.1.1
-- 端口: 22 (SSH默认端口)
-- 用户名: root
-- 密码: jS5d@50X@1X@1z@4hN
 
 ## 依赖
 
