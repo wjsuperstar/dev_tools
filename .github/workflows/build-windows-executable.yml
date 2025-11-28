@@ -65,23 +65,12 @@ jobs:
         
     - name: Create Release
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      uses: actions/create-release@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ github.run_number }}
-        release_name: Release v${{ github.run_number }}
+        name: Release v${{ github.run_number }}
         draft: false
         prerelease: false
+        files: |
+          *.exe
         
-    - name: Upload Release Assets
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-      run: |
-        # 上传所有生成的exe文件作为release资产
-        Get-ChildItem -Path "." -Filter "*.exe" | ForEach-Object {
-          $assetName = $_.Name
-          echo "Uploading $assetName"
-          gh release upload v${{ github.run_number }} $_.Name --clobber
-        }
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
