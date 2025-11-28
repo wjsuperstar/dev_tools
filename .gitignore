@@ -1,0 +1,67 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Nuitka build artifacts
+*.build/
+*.dist/
+*.onefile-build/
+*.exe
+*.bin
+*.app
+
+# PyInstaller build artifacts
+*.spec
+dist/
+build/
+
+# Log files
+*.log
+
+# Environment files
+.env
+.venv
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Download directories
+download/
+downloaded_files/
+
+# Tools directory build outputs
+tools/*.exe
+tools/*.build/
+tools/*.dist/
+tools/*.onefile-build/
+tools/dist/
+tools/build/

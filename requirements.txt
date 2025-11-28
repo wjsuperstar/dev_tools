@@ -1,0 +1,5 @@
+paramiko>=2.7.2
+scp>=0.13.2
+nuitka>=0.6.12
+pyinstaller>=4.0
+pycryptodome>=3.10.1
