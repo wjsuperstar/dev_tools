@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # auth: wujian 20241231
-# python -m nuitka --lto=no --onefile xx
+# python -m nuitka --lto=no --standalone --onefile xx
 # 导入程序运行必须模块 
 import sys, os
 import json

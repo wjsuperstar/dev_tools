@@ -30,10 +30,17 @@ jobs:
           $fileName = $_.BaseName
           $filePath = $_.FullName
           Write-Host "Building $fileName with Nuitka"
-          python -m nuitka --lto=no --onefile $filePath
+          echo "Yes" | python -m nuitka --lto=no --standalone --onefile $filePath
           # 重命名为带有Nuitka标识的文件
           if (Test-Path "$fileName.exe") {
             Rename-Item -Path "$fileName.exe" -NewName "${fileName}_nuitka.exe"
+          }
+          # 清理Nuitka生成的临时目录
+          if (Test-Path "$fileName.build") {
+            Remove-Item -Recurse -Force "$fileName.build"
+          }
+          if (Test-Path "$fileName.dist") {
+            Remove-Item -Recurse -Force "$fileName.dist"
           }
         }
         
@@ -44,17 +51,38 @@ jobs:
           $fileName = $_.BaseName
           $filePath = $_.FullName
           Write-Host "Building $fileName with PyInstaller"
-          pyinstaller --onefile $filePath
+          # 为每个文件创建独立的构建目录
+          $buildDir = "build_$fileName"
+          $distDir = "dist_$fileName"
+          pyinstaller --onefile --distpath $distDir --workpath $buildDir $filePath
           # 重命名为带有PyInstaller标识的文件
-          if (Test-Path "dist\$fileName.exe") {
-            Move-Item -Path "dist\$fileName.exe" -Destination "${fileName}_pyinstaller.exe"
+          if (Test-Path "$distDir\$fileName.exe") {
+            Move-Item -Path "$distDir\$fileName.exe" -Destination "${fileName}_pyinstaller.exe"
           }
+          # 清理PyInstaller临时目录
+          if (Test-Path $buildDir) {
+            Remove-Item -Recurse -Force $buildDir
+          }
+          if (Test-Path $distDir) {
+            Remove-Item -Recurse -Force $distDir
+          }
+        }
+        # 清理PyInstaller全局目录
+        if (Test-Path "build") {
+          Remove-Item -Recurse -Force "build"
+        }
+        if (Test-Path "dist") {
+          Remove-Item -Recurse -Force "dist"
         }
         
     - name: List generated executables
       run: |
-        Get-ChildItem -Path "." -Filter "*.exe" | ForEach-Object {
-          Write-Host "Generated: $($_.Name)"
+        Write-Host "=== Generated Executables ==="
+        Get-ChildItem -Path "." -Filter "*_nuitka.exe" | ForEach-Object {
+          Write-Host "Nuitka: $($_.Name)"
+        }
+        Get-ChildItem -Path "." -Filter "*_pyinstaller.exe" | ForEach-Object {
+          Write-Host "PyInstaller: $($_.Name)"
         }
         
     - name: Upload artifacts
@@ -73,4 +101,3 @@ jobs:
         prerelease: false
         files: |
           *.exe
-        
