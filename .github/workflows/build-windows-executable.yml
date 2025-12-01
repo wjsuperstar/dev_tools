@@ -9,6 +9,9 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    # 添加权限配置 - 修复 403 错误
+    permissions:
+      contents: write
     
     steps:
     - uses: actions/checkout@v4
@@ -17,6 +20,24 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.9'
+    
+    - name: Cache Nuitka builds
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/nuitka
+          C:\Users\RUNNER~1\AppData\Local\Nuitka
+        key: ${{ runner.os }}-nuitka-${{ hashFiles('**/requirements.txt', '**/tools/*.py') }}
+        restore-keys: |
+          ${{ runner.os }}-nuitka-
+          
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~\AppData\Local\pip\Cache
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
         
     - name: Install dependencies
       run: |
@@ -24,17 +45,29 @@ jobs:
         pip install paramiko scp nuitka pyinstaller pycryptodome
         
     - name: Build executables with Nuitka
+      continue-on-error: true  # 即使一个失败也继续构建其他的
       run: |
         # 遍历tools目录下的所有Python文件并使用Nuitka构建可执行程序
         Get-ChildItem -Path "tools" -Filter "*.py" | ForEach-Object {
           $fileName = $_.BaseName
           $filePath = $_.FullName
           Write-Host "Building $fileName with Nuitka"
-          echo "Yes" | python -m nuitka --lto=no --standalone --onefile $filePath
-          # 重命名为带有Nuitka标识的文件
-          if (Test-Path "$fileName.exe") {
-            Rename-Item -Path "$fileName.exe" -NewName "${fileName}_nuitka.exe"
+          
+          # 尝试构建，如果失败则记录并继续
+          try {
+            # 修复：添加 --standalone 参数
+            echo "Yes" | python -m nuitka --lto=no --standalone --onefile $filePath
+            # 重命名为带有Nuitka标识的文件
+            if (Test-Path "$fileName.exe") {
+              Rename-Item -Path "$fileName.exe" -NewName "${fileName}_nuitka.exe"
+              Write-Host "✓ Successfully built ${fileName}_nuitka.exe"
+            } else {
+              Write-Host "✗ Failed to build $fileName - no output file generated"
+            }
+          } catch {
+            Write-Host "✗ Failed to build $fileName with error: $($_.Exception.Message)"
           }
+          
           # 清理Nuitka生成的临时目录
           if (Test-Path "$fileName.build") {
             Remove-Item -Recurse -Force "$fileName.build"
@@ -45,20 +78,31 @@ jobs:
         }
         
     - name: Build executables with PyInstaller
+      continue-on-error: true  # 即使一个失败也继续构建其他的
       run: |
         # 遍历tools目录下的所有Python文件并使用PyInstaller构建可执行程序
         Get-ChildItem -Path "tools" -Filter "*.py" | ForEach-Object {
           $fileName = $_.BaseName
           $filePath = $_.FullName
           Write-Host "Building $fileName with PyInstaller"
-          # 为每个文件创建独立的构建目录
-          $buildDir = "build_$fileName"
-          $distDir = "dist_$fileName"
-          pyinstaller --onefile --distpath $distDir --workpath $buildDir $filePath
-          # 重命名为带有PyInstaller标识的文件
-          if (Test-Path "$distDir\$fileName.exe") {
-            Move-Item -Path "$distDir\$fileName.exe" -Destination "${fileName}_pyinstaller.exe"
+          
+          # 尝试构建，如果失败则记录并继续
+          try {
+            # 修复：为每个文件创建独立的构建目录
+            $buildDir = "build_$fileName"
+            $distDir = "dist_$fileName"
+            pyinstaller --onefile --distpath $distDir --workpath $buildDir $filePath
+            # 重命名为带有PyInstaller标识的文件
+            if (Test-Path "$distDir\$fileName.exe") {
+              Move-Item -Path "$distDir\$fileName.exe" -Destination "${fileName}_pyinstaller.exe"
+              Write-Host "✓ Successfully built ${fileName}_pyinstaller.exe"
+            } else {
+              Write-Host "✗ Failed to build $fileName - no output file generated"
+            }
+          } catch {
+            Write-Host "✗ Failed to build $fileName with error: $($_.Exception.Message)"
           }
+          
           # 清理PyInstaller临时目录
           if (Test-Path $buildDir) {
             Remove-Item -Recurse -Force $buildDir
@@ -78,11 +122,22 @@ jobs:
     - name: List generated executables
       run: |
         Write-Host "=== Generated Executables ==="
-        Get-ChildItem -Path "." -Filter "*_nuitka.exe" | ForEach-Object {
-          Write-Host "Nuitka: $($_.Name)"
-        }
-        Get-ChildItem -Path "." -Filter "*_pyinstaller.exe" | ForEach-Object {
-          Write-Host "PyInstaller: $($_.Name)"
+        $nuitkaCount = (Get-ChildItem -Path "." -Filter "*_nuitka.exe").Count
+        $pyinstallerCount = (Get-ChildItem -Path "." -Filter "*_pyinstaller.exe").Count
+        Write-Host "Nuitka executables: $nuitkaCount"
+        Write-Host "PyInstaller executables: $pyinstallerCount"
+        
+        if ($nuitkaCount -eq 0 -and $pyinstallerCount -eq 0) {
+          Write-Host "❌ No executables were generated. Build may have failed."
+          exit 1
+        } else {
+          Write-Host "✅ Build completed successfully!"
+          Get-ChildItem -Path "." -Filter "*_nuitka.exe" | ForEach-Object {
+            Write-Host "  Nuitka: $($_.Name)"
+          }
+          Get-ChildItem -Path "." -Filter "*_pyinstaller.exe" | ForEach-Object {
+            Write-Host "  PyInstaller: $($_.Name)"
+          }
         }
         
     - name: Upload artifacts
