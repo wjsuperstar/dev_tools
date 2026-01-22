@@ -7,10 +7,6 @@ import json
 import time
 import telnetlib
 
-cmd_list = [{"type": "shell", "cmd": "lc_usb_switch 0x03"},
-            {"type": "shell", "cmd": "uci set dropbear.@dropbear[0].enable=1;uci commit"},
-            {"type": "shell", "cmd": "/etc/init.d/dropbear start"}]
-
 class RunCmd():
     def __init__(self):
         self.host = "192.168.200.1"
@@ -61,7 +57,18 @@ class RunCmd():
         if self.tn is not None:
             self.tn.close()
 
-def main():    
+def main():
+    cmd_list = []
+    action = input("输入0或1或2（0：表示关闭SAR; 1表示打开SAR；2：查询当前配置的射频等级）: ")
+    if action in ["0", "1"]:
+        cmd_list = [{"type": "shell", "cmd": f"uci set mm.rf_state.enable={action};uci commit mm"}]
+    elif action in ["2"]:
+        cmd_list = [{"type": "shell_echo", "cmd": f"trc_mm_test --sar-rf 99"}]
+    else:
+        print(f"参数错误, param={action}")
+        time.sleep(1)
+        exit(0)
+    
     obj = RunCmd()
     for item in cmd_list:
         #print(f'run: {item["cmd"]}')
@@ -79,5 +86,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-    time.sleep(5)
+    time.sleep(2)
     # input("Press Enter to exit...")

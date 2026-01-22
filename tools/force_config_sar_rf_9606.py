@@ -7,10 +7,6 @@ import json
 import time
 import telnetlib
 
-cmd_list = [{"type": "shell", "cmd": "lc_usb_switch 0x03"},
-            {"type": "shell", "cmd": "uci set dropbear.@dropbear[0].enable=1;uci commit"},
-            {"type": "shell", "cmd": "/etc/init.d/dropbear start"}]
-
 class RunCmd():
     def __init__(self):
         self.host = "192.168.200.1"
@@ -45,39 +41,49 @@ class RunCmd():
     def run_cmd(self, cmd):
         if self.tn is None:
             if not self.login():
-                return False
+                return None
         try:
             self.tn.write(cmd.encode('ascii') + b'\r')
             result = self.tn.read_until(self.at_ack, 10)
             print('recv:', result.decode('ascii'))
             if result is None:
                 print("run cmd fail\n")
-            return True
+            return result.decode('ascii')
         except Exception as e:
             print("telnet rw error: ", e)
-            return False
+            return None
 
     def logout(self):
         if self.tn is not None:
             self.tn.close()
 
-def main():    
+def main():
+    action = input("强制设置SAR的射频等级，值域0~20，输入: ")
+    param_list = list(range(0, 21))
+    action = int(action)
+    if action not in param_list:
+        print(f"参数错误, param={action}")
+        time.sleep(1)
+        exit(0)
+    
     obj = RunCmd()
-    for item in cmd_list:
-        #print(f'run: {item["cmd"]}')
-        if item["type"] == "std_at":
-            obj.run_cmd('AT+MODEM=' + item['cmd'] + '\r')
-        elif item["type"] == "ext_at":
-            obj.run_cmd(item['cmd'] + '\r')
-        elif item["type"] == "shell":
-            obj.run_cmd('AT+SYSTEM=' + item['cmd'] + '\r')
-        elif item["type"] == "shell_echo":
-            obj.run_cmd('AT+SYSTEMECHO=' + item['cmd'] + '\r')
+    cmd_set = f"AT+SYSTEM=trc_mm_test --sar-rf {action}"
+    cmd_get = f"AT+SYSTEMECHO=trc_mm_test --sar-rf 99"
+    reslut = obj.run_cmd(cmd_set + '\r')
+    reslut = obj.run_cmd(cmd_get + '\r')
+    if reslut:
+        first_line = reslut.split('\n')[2]
+        value = int(first_line.split('=')[1])
+        print("value=", value)
+        if value == -999:
+            print("错误: SAR功能未打开，请先打开SAR！")
+        elif value == action:
+            print(f"成功: 配置射频等级{action}成功！")
         else:
-            print("cmd type error\n")
+            print("错误: 配置失败！")
     obj.logout()
 
 if __name__ == "__main__":
     main()
-    time.sleep(5)
+    time.sleep(3)
     # input("Press Enter to exit...")
