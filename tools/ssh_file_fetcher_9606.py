@@ -3,28 +3,58 @@ import os
 import sys
 from scp import SCPClient
 
-def download_files_with_scp():
-    hostname = "192.168.200.1"
-    port = 22
-    username = "root"
-    password = None  # 必须设置为 None (不是空字符串)
+# Configuration
+HOSTNAME = "192.168.200.1"
+PORT = 22
+USERNAME = "root"
+PASSWORD = None
 
-    remote_path = "/2ndfile/log"
-    local_dir = "./download"
-    os.makedirs(local_dir, exist_ok=True)
-
+def get_ssh_client():
+    """建立并返回 SSH 客户端连接"""
     try:
         # === 关键修复：使用 Transport 对象手动认证 ===
-        transport = paramiko.Transport((hostname, port))
-        transport.connect(username=username, password=password)  # 这里 password=None 是安全的
+        transport = paramiko.Transport((HOSTNAME, PORT))
+        transport.connect(username=USERNAME, password=PASSWORD)  # 这里 password=None 是安全的
         # 强制使用 none 认证（跳过 Paramiko 的自动选择）
-        transport.auth_none(username)
-        print("连接成功!")
-
+        transport.auth_none(USERNAME)
+        
         # 创建 SSHClient
         client = paramiko.SSHClient()
         client._transport = transport
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        return client
+    except Exception as e:
+        # 让调用者处理异常
+        raise e
+
+def execute_shell_command(command):
+    """
+    执行 Shell 命令并返回结果
+    :param command: Shell 命令字符串
+    :return: (stdout_content, stderr_content)
+    """
+    client = None
+    try:
+        client = get_ssh_client()
+        stdin, stdout, stderr = client.exec_command(command)
+        out = stdout.read().decode().strip()
+        err = stderr.read().decode().strip()
+        return out, err
+    except Exception as e:
+        return None, str(e)
+    finally:
+        if client:
+            client.close()
+
+def download_files_with_scp():
+    remote_path = "/2ndfile/log"
+    local_dir = "./download"
+    os.makedirs(local_dir, exist_ok=True)
+
+    client = None
+    try:
+        client = get_ssh_client()
+        print("连接成功!")
 
         # === 后续文件操作保持不变 ===
         print("正在查找文件...")
@@ -66,8 +96,21 @@ def download_files_with_scp():
     except Exception as e:
         print(f"❌ 发生错误: {e}")
     finally:
-        if 'transport' in locals():
-            transport.close()
+        if client:
+            client.close()
 
 if __name__ == "__main__":
-    download_files_with_scp()
+    if len(sys.argv) > 1:
+        # 如果有命令行参数，则执行命令
+        cmd = " ".join(sys.argv[1:])
+        # print(f"Executing command: {cmd}") 
+        # 用户可能只想要输出结果，不想要额外的log，这里可以斟酌。但为了调试还是保留print cmd比较好，或者打印在stderr。
+        
+        out, err = execute_shell_command(cmd)
+        if out:
+            print(out)
+        if err:
+            print(f"Error: {err}", file=sys.stderr)
+    else:
+        # 否则执行默认的文件下载任务
+        download_files_with_scp()
