@@ -75,14 +75,15 @@ class RunCmd:
         for item in cmd_list:
             ctype = item.get("type")
             cmd = item.get("cmd")
+            # 结尾的 \r 由 run_cmd() 统一追加，这里不要再加，否则会发出双 CR
             if ctype == "std_at":
-                self.run_cmd('AT+MODEM=' + cmd + '\r')
+                self.run_cmd('AT+MODEM=' + cmd)
             elif ctype == "ext_at":
-                self.run_cmd(cmd + '\r')
+                self.run_cmd(cmd)
             elif ctype == "shell":
-                self.run_cmd('AT+SYSTEM=' + cmd + '\r')
+                self.run_cmd('AT+SYSTEM=' + cmd)
             elif ctype == "shell_echo":
-                self.run_cmd('AT+SYSTEMECHO=' + cmd + '\r')
+                self.run_cmd('AT+SYSTEMECHO=' + cmd)
             else:
                 print(f"cmd type error: {ctype!r}")
 
