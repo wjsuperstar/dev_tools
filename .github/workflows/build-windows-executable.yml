@@ -105,12 +105,12 @@ jobs:
             Write-Host "Building $fileName with Nuitka"
 
             # --assume-yes-for-downloads 代替 cmd /c "echo Y|"，自动确认 ccache 下载
-            # --include-dir/--include-package 保证 tools/common 包被打进单文件
+            # Nuitka 会把主脚本所在目录加入搜索路径，因此 tools/ 下的脚本能直接
+            # import common；--include-package 显式保证该包被打进单文件
             python -m nuitka `
               --lto=no `
               --onefile `
               --assume-yes-for-downloads `
-              --include-dir=tools `
               --include-package=common `
               --output-filename="${fileName}_nuitka.exe" `
               --remove-output `

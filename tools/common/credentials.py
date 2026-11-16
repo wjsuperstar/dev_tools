@@ -24,13 +24,45 @@ class CredentialsError(RuntimeError):
     """凭据文件缺失或格式不正确。"""
 
 
+def _executable_dirs():
+    """返回 exe 所在目录的候选列表（兼容 PyInstaller 与 Nuitka）。
+
+    - PyInstaller：sys.frozen 为 True，sys.executable 就是 exe 本身
+    - Nuitka onefile：sys.executable 指向临时解压目录里的 python.exe，
+      真正的 exe 路径在 sys.argv[0] / __compiled__.original_argv0
+    """
+    dirs = []
+
+    if getattr(sys, "frozen", False):
+        dirs.append(Path(sys.executable).resolve().parent)
+
+    if sys.argv and sys.argv[0]:
+        dirs.append(Path(sys.argv[0]).resolve().parent)
+
+    compiled = globals().get("__compiled__")
+    for attr in ("original_argv0", "process_exe"):
+        value = getattr(compiled, attr, None)
+        if value:
+            dirs.append(Path(value).resolve().parent)
+
+    seen = set()
+    unique = []
+    for d in dirs:
+        if d not in seen:
+            seen.add(d)
+            unique.append(d)
+    return unique
+
+
 def _candidate_paths():
     env_path = os.environ.get("DEVTOOLS_CREDENTIALS")
     if env_path:
         yield Path(env_path)
-    if getattr(sys, "frozen", False):
-        # 打包后的 exe：找 exe 同级目录
-        yield Path(sys.executable).resolve().parent / CREDENTIALS_FILENAME
+
+    # 打包成 exe：找 exe 同级目录
+    for d in _executable_dirs():
+        yield d / CREDENTIALS_FILENAME
+
     # 源码运行：tools/common/credentials.py -> tools/
     yield Path(__file__).resolve().parent.parent / CREDENTIALS_FILENAME
     yield Path(__file__).resolve().parent / CREDENTIALS_FILENAME
